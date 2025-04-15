@@ -3,6 +3,9 @@
 This module contains functions to extract structured data from natural language responses.
 """
 
+import re
+from src.utils.validators import validate_phone_number
+
 # These are placeholder functions for Phase 1
 # They will be enhanced with NLP capabilities in Phase 2
 
@@ -35,9 +38,39 @@ def extract_location(text):
     return None
 
 def extract_phone_number(text):
-    """Extract phone number from text."""
-    # This will be implemented in Phase 2
-    # Will use regex patterns for Peruvian phone numbers
+    """Extract phone number from text.
+    
+    Identifies and extracts Peruvian phone numbers in various formats:
+    - 9XXXXXXXX (9 digits starting with 9)
+    - +519XXXXXXXX (with country code)
+    - 51-9XXXXXXXX (with country code and hyphen)
+    - 51 9XX XXX XXX (with spaces)
+    
+    Args:
+        text (str): Text containing potential phone numbers
+        
+    Returns:
+        str or None: Extracted phone number if found, None otherwise
+    """
+    if not text:
+        return None
+    
+    # Common patterns for Peruvian phone numbers
+    patterns = [
+        r'\b9\d{8}\b',                       # 9XXXXXXXX
+        r'(?:\+51|51)[- ]?9[- ]?\d{8}\b',    # +519XXXXXXXX or 519XXXXXXXX with optional spaces/hyphens
+        r'\b51[- ]?9[- ]?\d{2}[- ]?\d{3}[- ]?\d{3}\b'  # 51 9XX XXX XXX with various separators
+    ]
+    
+    # Try each pattern
+    for pattern in patterns:
+        matches = re.findall(pattern, text)
+        if matches:
+            # Clean up the first match and validate
+            candidate = matches[0]
+            if validate_phone_number(candidate):
+                return candidate
+    
     return None
 
 def extract_consent(text):
