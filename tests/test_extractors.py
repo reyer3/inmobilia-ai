@@ -1,7 +1,9 @@
 """Tests for data extraction utilities."""
 
 import pytest
-from src.utils.extractors import extract_property_type, extract_consent, extract_phone_number
+
+from src.utils.extractors import extract_consent, extract_phone_number, extract_property_type
+
 
 def test_extract_property_type():
     """Test extraction of property types."""

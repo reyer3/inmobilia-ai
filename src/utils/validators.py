@@ -5,6 +5,7 @@ This module contains functions to validate different types of user data.
 
 import re
 
+
 def validate_phone_number(phone):
     """Validate Peruvian phone number.
     

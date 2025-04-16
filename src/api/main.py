@@ -1,12 +1,14 @@
 """FastAPI application for the Inmobilia AI web interface."""
 
-from fastapi import FastAPI, HTTPException, Depends, Request
+from typing import Any, Dict, List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, List, Optional, Any
 
 from src.config.settings import APP_NAME, APP_VERSION, DEBUG
 from src.graphs.mvp_graph import build_mvp_graph
+
 
 # Define models
 class ChatMessage(BaseModel):

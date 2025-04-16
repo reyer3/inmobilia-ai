@@ -1,7 +1,9 @@
 """Tests for data validation utilities."""
 
 import pytest
-from src.utils.validators import validate_phone_number, validate_email, validate_dni
+
+from src.utils.validators import validate_dni, validate_email, validate_phone_number
+
 
 def test_validate_phone_number():
     """Test validation of Peruvian phone numbers."""

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+echo "Running pre-commit hook to format code..."
+
+# Get a list of staged Python files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.py$')
+
+if [ -n "$STAGED_FILES" ]; then
+    echo "Formatting Python files with Black and isort..."
+    
+    # Format with Black
+    echo "$STAGED_FILES" | xargs black
+    
+    # Format with isort
+    echo "$STAGED_FILES" | xargs isort
+    
+    # Add back the formatted files to staging
+    echo "$STAGED_FILES" | xargs git add
+    
+    echo "✅ Code formatting completed successfully!"
+else
+    echo "No Python files to format."
+fi
+
+# Run lint checks
+echo "Running lint checks..."
+flake8 src/ tests/ || exit 1
+mypy --ignore-missing-imports src/ || exit 1
+
+echo "✅ Pre-commit checks completed successfully!"
+exit 0

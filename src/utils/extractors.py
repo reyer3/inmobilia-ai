@@ -4,6 +4,7 @@ This module contains functions to extract structured data from natural language 
 """
 
 import re
+
 from src.utils.validators import validate_phone_number
 
 # These are placeholder functions for Phase 1

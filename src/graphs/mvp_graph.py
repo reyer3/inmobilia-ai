@@ -4,7 +4,8 @@ This is the simplest graph implementation for Phase 1, focusing on
 capturing the mandatory (P10) fields through a conversational interface.
 """
 
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
+
 from langgraph.graph import StateGraph
 
 # Type definitions for better readability
