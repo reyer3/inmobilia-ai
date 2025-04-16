@@ -4,7 +4,7 @@ This module contains functions to extract structured data from natural language 
 """
 
 import re
-from src.utils.validators import validate_phone_number, validate_email
+from src.utils.validators import validate_phone_number
 
 # These are placeholder functions for Phase 1
 # They will be enhanced with NLP capabilities in Phase 2
@@ -70,38 +70,6 @@ def extract_phone_number(text):
             candidate = matches[0]
             if validate_phone_number(candidate):
                 return candidate
-    
-    return None
-
-def extract_email(text):
-    """Extract email address from text.
-    
-    Identifies and extracts email addresses from text, even when embedded in sentences.
-    Supports various email formats:
-    - standard@domain.com
-    - user.name@domain.com
-    - user-name+tag@domain.co.xx
-    
-    Args:
-        text (str): Text containing potential email addresses
-        
-    Returns:
-        str or None: Extracted email if found and valid, None otherwise
-    """
-    if not text:
-        return None
-    
-    # Pattern for matching email addresses in text
-    # This is more permissive than validation to catch more potential emails
-    pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    
-    # Find all potential matches
-    matches = re.findall(pattern, text)
-    
-    # Return the first valid email
-    for candidate in matches:
-        if validate_email(candidate):
-            return candidate
     
     return None
 
