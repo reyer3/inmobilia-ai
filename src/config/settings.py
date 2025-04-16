@@ -1,6 +1,7 @@
 """Configuration settings for the application."""
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -19,4 +20,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Validation
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set. Please set it in your .env file.")
+    raise ValueError(
+        "OPENAI_API_KEY environment variable is not set. Please set it in your .env file."
+    )
