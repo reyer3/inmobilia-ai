@@ -50,3 +50,37 @@ logs/
 # OS specific
 .DS_Store
 Thumbs.db
+
+
+# Archivos de modelos y datos de ML
+*.model
+*.pkl
+*.h5
+*.tfmodel
+*.pt
+*.onnx
+models/
+data/raw/
+data/processed/
+
+# Archivos temporales de Jupyter
+.ipynb_checkpoints/
+*.ipynb.py
+
+# Coverage y testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Ambiente de desarrollo de documentación
+docs/_build/
+site/
+
+# Archivos de configuración local
+config.local.yaml
+settings.local.yaml
+
+# Artefactos de dependencias
+.python-version
+poetry.lock
