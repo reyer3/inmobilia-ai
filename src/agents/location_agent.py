@@ -4,12 +4,21 @@ Este agente maneja consultas relacionadas con distritos, zonas,
 y ubicaciones específicas en Perú, con enfoque en Lima Metropolitana.
 """
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple, TypedDict
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI  # Cambiado de ChatAnthropic
 from langgraph.types import Command
+
+from src.models.lead_data import LeadData
+
+
+class LocationInfo(TypedDict):
+    """Información de ubicación extraída del mensaje."""
+    distrito: Optional[str]
+    zona: Optional[str]
+
 
 LOCATION_PROMPT = """
 Eres un agente especializado en ubicaciones inmobiliarias en Perú, con énfasis en Lima Metropolitana.
@@ -49,18 +58,46 @@ Responde de manera concisa y natural, enfocándote en ayudar al usuario a defini
 class LocationAgent:
     """Agente especializado en ubicaciones inmobiliarias en Perú."""
 
-    def __init__(self, model_name: str = "claude-3-5-sonnet-latest", temperature: float = 0.3):
+    def __init__(self, model_name: str = "gpt-4-1106-preview", temperature: float = 0.3):
         """Inicializa el agente de ubicaciones.
 
         Args:
-            model_name: Nombre del modelo de Claude a utilizar
+            model_name: Nombre del modelo a utilizar
             temperature: Temperatura para la generación de texto
         """
-        self.model = ChatAnthropic(model=model_name, temperature=temperature)
+        self.model = ChatOpenAI(model=model_name, temperature=temperature)
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", LOCATION_PROMPT), ("human", "{input}")]
         )
         self.chat_history = []
+
+        # Definir distritos para uso en extracción estructurada
+        self.distritos = [
+            "Miraflores", "San Isidro", "Barranco", "San Borja", "Surco", "La Molina",
+            "Jesús María", "Lince", "Pueblo Libre", "Magdalena", "San Miguel",
+            "Los Olivos", "Independencia", "San Martín de Porres",
+            "Villa El Salvador", "San Juan de Miraflores", "Villa María del Triunfo",
+            "Ate", "Santa Anita", "Chorrillos", "Breña", "Rímac", "Cercado de Lima",
+            "La Victoria", "San Juan de Lurigancho", "Comas", "Carabayllo",
+            "San Luis", "El Agustino", "Santa Rosa", "Ancón", "Puente Piedra",
+            "Lurigancho", "Pachacámac", "San Bartolo", "Punta Hermosa",
+            "Punta Negra", "Santa María del Mar", "Pucusana", "Lurín", "Cieneguilla",
+        ]
+
+        # Definir zonas para uso en extracción estructurada
+        self.lima_zonas = {
+            "lima moderna": [
+                "Miraflores", "San Isidro", "Barranco", "San Borja", "Surco", "La Molina",
+            ],
+            "lima centro": ["Jesús María", "Lince", "Pueblo Libre", "Magdalena", "San Miguel"],
+            "lima norte": [
+                "Los Olivos", "Independencia", "San Martín de Porres", "Comas", "Carabayllo",
+            ],
+            "lima sur": [
+                "Villa El Salvador", "San Juan de Miraflores", "Villa María del Triunfo", "Chorrillos",
+            ],
+            "lima este": ["Ate", "Santa Anita", "La Molina", "San Juan de Lurigancho"],
+        }
 
     async def process_node(self, state: Dict[str, Any], config: RunnableConfig) -> Command:
         """Procesa el estado actual y genera una respuesta.
@@ -90,8 +127,6 @@ class LocationAgent:
         if lead_obj:
             lead_obj.update_from_dict(updated_data)
         else:
-            from src.models.lead_data import LeadData
-
             lead_obj = LeadData(**updated_data)
 
         # Crear comando para actualizar estado y volver al supervisor
@@ -121,7 +156,7 @@ class LocationAgent:
         self.chat_history.append({"role": "user", "content": user_input})
 
         # Extraer información sobre ubicación
-        location_info = self._extract_location(user_input)
+        location_info = self._extract_location_structured(user_input)
         for key, value in location_info.items():
             if value and (key not in user_data or not user_data[key]):
                 user_data[key] = value
@@ -143,90 +178,55 @@ class LocationAgent:
 
         return response.content, user_data
 
-    def _extract_location(self, text: str) -> Dict[str, Any]:
-        """Extrae información sobre ubicación del texto del usuario."""
-        location_info = {}
+    def _extract_location_structured(self, text: str) -> Dict[str, Any]:
+        """Extrae información sobre ubicación del texto del usuario usando un enfoque estructurado."""
+        # Definir la estructura de salida esperada
+        structured_output_prompt = f"""
+        Analiza este texto y extrae información sobre ubicaciones en Lima, Perú.
+        
+        Texto: "{text}"
+        
+        Responde SOLO con un JSON que contenga estos campos:
+        - distrito: El distrito de Lima mencionado, o null si no se menciona
+        - zona: La zona de Lima mencionada (lima moderna, lima centro, lima norte, lima sur, lima este), o null si no se menciona
+        
+        Distritos válidos: {", ".join(self.distritos)}
+        Zonas válidas: {", ".join(self.lima_zonas.keys())}
+        """
 
-        # Lista de distritos de Lima
-        distritos = [
-            "Miraflores",
-            "San Isidro",
-            "Barranco",
-            "San Borja",
-            "Surco",
-            "La Molina",
-            "Jesús María",
-            "Lince",
-            "Pueblo Libre",
-            "Magdalena",
-            "San Miguel",
-            "Los Olivos",
-            "Independencia",
-            "San Martín de Porres",
-            "Villa El Salvador",
-            "San Juan de Miraflores",
-            "Villa María del Triunfo",
-            "Ate",
-            "Santa Anita",
-            "Chorrillos",
-            "Breña",
-            "Rímac",
-            "Cercado de Lima",
-            "La Victoria",
-            "San Juan de Lurigancho",
-            "Comas",
-            "Carabayllo",
-            "San Luis",
-            "El Agustino",
-            "Santa Rosa",
-            "Ancón",
-            "Puente Piedra",
-            "Lurigancho",
-            "Pachacámac",
-            "San Bartolo",
-            "Punta Hermosa",
-            "Punta Negra",
-            "Santa María del Mar",
-            "Pucusana",
-            "Lurín",
-            "Cieneguilla",
-        ]
+        try:
+            # Usar el modelo para extraer la información estructurada
+            extraction_response = self.model.with_structured_output(LocationInfo).invoke(
+                [{"role": "user", "content": structured_output_prompt}]
+            )
+
+            # Validar la extracción
+            location_info = {}
+            if extraction_response.get("distrito") and extraction_response["distrito"] in self.distritos:
+                location_info["distrito"] = extraction_response["distrito"]
+
+            if extraction_response.get("zona") and extraction_response["zona"] in self.lima_zonas.keys():
+                location_info["zona"] = extraction_response["zona"]
+
+            return location_info
+        except (ValueError, KeyError, AttributeError):
+            # Si hay un error, utilizar el método de extracción basado en reglas como fallback
+            return self._extract_location_fallback(text)
+
+    def _extract_location_fallback(self, text: str) -> Dict[str, Any]:
+        """Método de respaldo para extraer información sobre ubicación basado en reglas."""
+        location_info = {}
+        text_lower = text.lower()
 
         # Verificar si menciona algún distrito específico
-        for distrito in distritos:
-            if distrito.lower() in text.lower():
+        for distrito in self.distritos:
+            if distrito.lower() in text_lower:
                 location_info["distrito"] = distrito
                 break
 
-        # Verificar si menciona Lima o alguna zona genérica
-        lima_zonas = {
-            "lima moderna": [
-                "Miraflores",
-                "San Isidro",
-                "Barranco",
-                "San Borja",
-                "Surco",
-                "La Molina",
-            ],
-            "lima centro": ["Jesús María", "Lince", "Pueblo Libre", "Magdalena", "San Miguel"],
-            "lima norte": [
-                "Los Olivos",
-                "Independencia",
-                "San Martín de Porres",
-                "Comas",
-                "Carabayllo",
-            ],
-            "lima sur": [
-                "Villa El Salvador",
-                "San Juan de Miraflores",
-                "Villa María del Triunfo",
-                "Chorrillos",
-            ],
-            "lima este": ["Ate", "Santa Anita", "La Molina", "San Juan de Lurigancho"],
-        }
-
-        for zona, distritos_zona in lima_zonas.items():
-            if zona.lower() in text.lower():
+        # Verificar si menciona alguna zona genérica
+        for zona in self.lima_zonas.keys():
+            if zona in text_lower:
                 location_info["zona"] = zona
                 break
 
@@ -287,20 +287,6 @@ class LocationAgent:
         """Reinicia el estado del agente."""
         self.chat_history = []
 
-    # Métodos adicionales para integración con herramientas (alineado con LangGraph)
-
-    def get_tools(self):
-        """Retorna las herramientas que este agente puede utilizar."""
-        from src.agents.extractors import ExtractorTools
-
-        extractors = ExtractorTools()
-
-        return [
-            extractors.extract_district,
-            extractors.extract_zone,
-            extractors.extract_metraje,
-        ]
-
-    def get_prompt(self):
+    def get_prompt(self) -> str:
         """Retorna el prompt base para este agente."""
         return LOCATION_PROMPT

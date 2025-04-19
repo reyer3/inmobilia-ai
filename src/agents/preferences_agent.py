@@ -4,14 +4,32 @@ Este agente se enfoca en obtener detalles específicos sobre el tipo
 de inmueble que busca el usuario, sus características, presupuesto y otros requisitos.
 """
 
-import re
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
 from langgraph.types import Command
+from pydantic import BaseModel, Field
+
+
+# Modelos para estructurar la extracción
+class PropertyPreference(BaseModel):
+    """Modelo para estructurar las preferencias inmobiliarias extraídas."""
+
+    tipo_inmueble: Optional[str] = Field(None, description="Tipo de inmueble buscado (departamento, casa, etc.)")
+    presupuesto_min: Optional[float] = Field(None, description="Presupuesto mínimo en la moneda mencionada")
+    presupuesto_max: Optional[float] = Field(None, description="Presupuesto máximo en la moneda mencionada")
+    moneda: Optional[str] = Field(None, description="Moneda del presupuesto (soles, dólares)")
+    metraje: Optional[int] = Field(None, description="Metraje deseado en metros cuadrados")
+    habitaciones: Optional[int] = Field(None, description="Número de habitaciones deseadas")
+    distrito: Optional[str] = Field(None, description="Distrito o zona preferida")
+    timeline_compra: Optional[str] = Field(None, description="Plazo para la compra o alquiler")
+
+    class Config:
+        extra = "ignore"
+
 
 PREFERENCES_PROMPT = """
 Eres un agente especializado en capturar preferencias inmobiliarias en Perú.
@@ -44,6 +62,27 @@ Mensaje del usuario: {input}
 Responde de manera natural y pregunta por la siguiente preferencia prioritaria que falte.
 """
 
+# Prompt para extraer preferencias estructuradas
+EXTRACTION_PROMPT = """
+Extrae las preferencias inmobiliarias mencionadas en el mensaje del usuario y estructúralas 
+según el formato solicitado. Solo incluye lo explícitamente mencionado en este mensaje, 
+no información de mensajes anteriores.
+
+Mensaje del usuario: {text}
+
+Detecta las siguientes categorías si están presentes:
+- tipo_inmueble: El tipo de propiedad mencionado (departamento, casa, terreno, etc.)
+- presupuesto_min: El monto mínimo del presupuesto en números
+- presupuesto_max: El monto máximo del presupuesto en números
+- moneda: La moneda mencionada (soles, dólares, etc.)
+- metraje: El tamaño en metros cuadrados como número entero
+- habitaciones: La cantidad de habitaciones como número entero
+- distrito: El distrito o zona mencionada de Lima/Perú
+- timeline_compra: Plazo para comprar (inmediato, 1-3 meses, 3-6 meses, 6+ meses)
+
+Responde solo con los datos encontrados, omitiendo los campos no mencionados.
+"""
+
 
 class PreferencesAgent:
     """Agente especializado en capturar preferencias inmobiliarias."""
@@ -55,9 +94,12 @@ class PreferencesAgent:
             model_name: Nombre del modelo de Claude a utilizar
             temperature: Temperatura para la generación de texto
         """
-        self.model = ChatAnthropic(model=model_name, temperature=temperature)
+        self.model = ChatOpenAI(model=model_name, temperature=temperature)
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", PREFERENCES_PROMPT), ("human", "{input}")]
+        )
+        self.extraction_prompt = ChatPromptTemplate.from_messages(
+            [("system", EXTRACTION_PROMPT), ("human", "{text}")]
         )
         self.chat_history = []
 
@@ -119,14 +161,17 @@ class PreferencesAgent:
         # Actualizar historial con el mensaje del usuario
         self.chat_history.append({"role": "user", "content": user_input})
 
-        # Extraer preferencias del mensaje
-        preferences = self._extract_preferences(user_input)
-        for key, value in preferences.items():
-            if value and (key not in user_data or not user_data[key]):
-                user_data[key] = value
+        # Extraer preferencias del mensaje usando modelo estructurado
+        preferences = self._extract_structured_preferences(user_input)
+
+        # Actualizar datos del usuario con nuevas preferencias
+        updated_data = user_data.copy()
+        for key, value in preferences.model_dump(exclude_none=True).items():
+            if value is not None:
+                updated_data[key] = value
 
         # Formatear las preferencias conocidas para el prompt
-        preferences_str = self._format_preferences(user_data)
+        preferences_str = self._format_preferences(updated_data)
 
         # Generar respuesta
         response = self.model.invoke(
@@ -141,115 +186,34 @@ class PreferencesAgent:
         self.chat_history.append({"role": "assistant", "content": response.content})
 
         # Actualizar la fecha de última interacción
-        user_data["ultima_interaccion"] = datetime.now().isoformat()
+        updated_data["ultima_interaccion"] = datetime.now().isoformat()
 
-        return response.content, user_data
+        return response.content, updated_data
 
-    def _extract_preferences(self, text: str) -> Dict[str, Any]:
-        """Extrae preferencias inmobiliarias del texto del usuario."""
-        preferences = {}
+    def _extract_structured_preferences(self, text: str) -> PropertyPreference:
+        """Extrae preferencias inmobiliarias del texto usando modelo estructurado."""
+        try:
+            # Usar el modelo para extraer preferencias estructuradas
+            extraction_result = self.model.with_structured_output(PropertyPreference).invoke(
+                self.extraction_prompt.format(text=text)
+            )
+            return extraction_result
+        except Exception as e:
+            print(f"Error extrayendo preferencias estructuradas: {e}")
+            # Fallback a un objeto de PropertyPreference con valores predeterminados
+            return PropertyPreference(
+                tipo_inmueble=None,
+                presupuesto_min=None,
+                presupuesto_max=None,
+                moneda=None,
+                metraje=None,
+                habitaciones=None,
+                distrito=None,
+                timeline_compra=None
+            )
 
-        # Extraer tipo de inmueble
-        property_types = {
-            "departamento": ["departamento", "depa", "flat", "apartamento"],
-            "casa": ["casa", "chalet", "vivienda"],
-            "terreno": ["terreno", "lote", "parcela"],
-            "oficina": ["oficina", "local comercial", "espacio comercial"],
-            "casa de playa": ["casa de playa", "casa en la playa"],
-        }
-
-        for prop_type, keywords in property_types.items():
-            if any(keyword in text.lower() for keyword in keywords):
-                preferences["tipo_inmueble"] = prop_type
-                break
-
-        # Extraer metraje
-        metraje_patterns = [
-            r"([0-9]+)\s*m2",
-            r"([0-9]+)\s*metros cuadrados",
-            r"([0-9]+)\s*metros",
-        ]
-
-        for pattern in metraje_patterns:
-            match = re.search(pattern, text.lower())
-            if match:
-                try:
-                    preferences["metraje"] = int(match.group(1))
-                    break
-                except ValueError:
-                    pass
-
-        # Extraer número de habitaciones
-        habitaciones_patterns = [
-            r"([0-9]+)\s*habitaci[oó]n",
-            r"([0-9]+)\s*habitaciones",
-            r"([0-9]+)\s*cuartos",
-            r"([0-9]+)\s*dormitorios",
-            r"([0-9]+)\s*dorm",
-        ]
-
-        for pattern in habitaciones_patterns:
-            match = re.search(pattern, text.lower())
-            if match:
-                try:
-                    preferences["habitaciones"] = int(match.group(1))
-                    break
-                except ValueError:
-                    pass
-
-        # Extraer presupuesto
-        # Patrones para capturar presupuesto en diferentes formatos (soles o dólares)
-        precio_patterns = [
-            # Formato $X,XXX o $X.XXX
-            r"\$\s*([0-9]{1,3}(?:[,.][0-9]{3})*(?:\.[0-9]+)?)",
-            # Formato S/X,XXX o S/.X,XXX
-            r"S/\.?\s*([0-9]{1,3}(?:[,.][0-9]{3})*(?:\.[0-9]+)?)",
-            # Formato X,XXX soles
-            r"([0-9]{1,3}(?:[,.][0-9]{3})*(?:\.[0-9]+)?)\s*(?:soles|sol)",
-            # Formato X,XXX dólares/USD
-            r"([0-9]{1,3}(?:[,.][0-9]{3})*(?:\.[0-9]+)?)\s*(?:d[oó]lares|usd)",
-        ]
-
-        for pattern in precio_patterns:
-            matches = re.finditer(pattern, text.lower())
-            prices = []
-
-            for match in matches:
-                try:
-                    # Limpiar el número (quitar comas y convertir a float)
-                    price_str = match.group(1).replace(",", "")
-                    price = float(price_str)
-                    prices.append(price)
-                except (ValueError, IndexError):
-                    continue
-
-            if len(prices) == 1:
-                # Si solo hay un precio, asumimos que es el máximo
-                preferences["presupuesto_max"] = prices[0]
-            elif len(prices) >= 2:
-                # Si hay dos o más, asumimos min y max
-                preferences["presupuesto_min"] = min(prices)
-                preferences["presupuesto_max"] = max(prices)
-
-            if prices:  # Si encontramos al menos un precio, salimos del bucle
-                break
-
-        # Detectar si menciona plazos
-        timeline_patterns = {
-            "inmediato": ["inmediato", "urgente", "ya mismo", "cuanto antes"],
-            "1-3 meses": ["próximo mes", "siguiente mes", "pronto", "en unas semanas"],
-            "3-6 meses": ["en unos meses", "mediano plazo"],
-            "6+ meses": ["largo plazo", "fin de año", "próximo año"],
-        }
-
-        for timeline, keywords in timeline_patterns.items():
-            if any(keyword in text.lower() for keyword in keywords):
-                preferences["timeline_compra"] = timeline
-                break
-
-        return preferences
-
-    def _format_preferences(self, data: Dict[str, Any]) -> str:
+    @staticmethod
+    def _format_preferences(data: Dict[str, Any]) -> str:
         """Formatea las preferencias conocidas para incluirlas en el prompt."""
         if not data:
             return "No se conocen preferencias del usuario todavía."
@@ -304,21 +268,7 @@ class PreferencesAgent:
         """Reinicia el estado del agente."""
         self.chat_history = []
 
-    # Métodos adicionales para integración con herramientas (alineado con LangGraph)
-
-    def get_tools(self):
-        """Retorna las herramientas que este agente puede utilizar."""
-        from src.agents.extractors import ExtractorTools
-
-        extractors = ExtractorTools()
-
-        return [
-            extractors.extract_property_type,
-            extractors.extract_habitaciones,
-            extractors.extract_presupuesto,
-            extractors.extract_timeline,
-        ]
-
+    # Métodos adicionales para integración con LangGraph
     def get_prompt(self):
         """Retorna el prompt base para este agente."""
         return PREFERENCES_PROMPT

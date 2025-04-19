@@ -7,7 +7,7 @@ de acuerdo con la Ley 29733 de Protección de Datos Personales de Perú.
 from datetime import datetime
 from typing import Any, Dict, Tuple
 
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
@@ -46,7 +46,7 @@ class LegalAgent:
             model_name: Nombre del modelo de Claude a utilizar
             temperature: Temperatura para la generación de texto
         """
-        self.model = ChatAnthropic(model=model_name, temperature=temperature)
+        self.model = ChatOpenAI(model=model_name, temperature=temperature)
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", LEGAL_PROMPT), ("human", "{input}")]
         )
