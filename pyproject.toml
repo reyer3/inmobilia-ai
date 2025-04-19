@@ -1,26 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "inmobilia-ai"
 version = "0.1.0"
-description = "Conversational AI assistant for real estate lead generation"
+description = "Asistente inmobiliario basado en LangGraph para el mercado peruano"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+authors = [
+    {name = "Inmobilia AI Team", email = "info@inmobilia.pe"}
+]
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.1.0",
+    "langgraph>=0.0.30",
+    "anthropic>=0.12.0",
+    "langchain-anthropic>=0.1.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "langsmith>=0.0.82",
+    "langchain-core>=0.3.54",
+    "flake8>=7.2.0",
+    "pytest>=8.3.5",
+]
 
-[build-system]
-requires = ["setuptools>=42.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.15",
+    "mypy>=1.0.0",
+    "types-python-dateutil",
+]
 
-[tool.black]
+[tool.ruff]
+target-version = "py313"  # Actualizado a Python 3.13
 line-length = 100
-target-version = ['py312', 'py313']
-include = '\\.pyi?$'
 
-[tool.isort]
-profile = "black"
-line_length = 100
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "D"]
+ignore = ["D203", "D212", "D401"]
+fixable = ["I", "D"]
+
+[tool.ruff.lint.isort]
+case-sensitive = true
+combine-as-imports = true
+known-first-party = ["src", "tests"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.13"  # Actualizado a Python 3.13
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
+
+[tool.black]
+line-length = 100  # Consistente con Ruff
+target-version = ['py313']  # Actualizado a Python 3.13
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 100  # Consistente con Ruff
