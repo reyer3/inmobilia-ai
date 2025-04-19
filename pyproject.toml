@@ -30,6 +30,7 @@ dependencies = [
     "langchain-core>=0.3.54",
     "flake8>=7.2.0",
     "pytest>=8.3.5",
+    "langchain-openai>=0.3.14",
 ]
 
 [project.optional-dependencies]
