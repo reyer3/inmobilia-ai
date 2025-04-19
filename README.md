@@ -1,55 +1,111 @@
-# Inmobilia AI
+# Inmobilia AI - Asistente Inmobiliario para el Mercado Peruano
 
-Agente conversacional basado en LangGraph para generación de leads inmobiliarios.
+Inmobilia AI es un asistente conversacional especializado en bienes raíces para el mercado peruano. Utilizando un sistema multi-agente, el asistente puede recolectar información de usuarios interesados en propiedades, mientras cumple con la Ley 29733 de Protección de Datos Personales.
 
-## Descripción
+![Inmobilia AI](static/studio_ui.png)
 
-Inmobilia AI es un sistema de conversación inteligente diseñado para capturar y calificar leads en el sector inmobiliario, específicamente adaptado al mercado peruano. El sistema utiliza LangGraph para crear flujos de conversación naturales que obtienen la información necesaria mientras mantienen una experiencia fluida para el usuario.
+## Características principales
 
-## Características
+- 🤖 **Sistema Multi-Agente**: Utiliza agentes especializados para diferentes aspectos de la conversación (legal, recolección de datos, ubicación, preferencias inmobiliarias)
+- 🧠 **Orquestación Inteligente**: Coordina la conversación a través de un supervisor que asigna mensajes al agente más adecuado
+- 📝 **Gestión de Leads**: Captura y estructura datos de usuarios interesados en propiedades inmobiliarias
+- 🔒 **Cumplimiento Legal**: Maneja el consentimiento explícito según la Ley 29733 de Protección de Datos Personales
+- 📊 **Analítica Integrada**: Registra métricas y eventos para análisis de conversaciones
 
-- Conversación natural para captura de datos de lead
-- Cumplimiento con la ley peruana de protección de datos (Ley 29733)
-- Extracción inteligente de información de respuestas abiertas
-- Flujos adaptativos según las necesidades del usuario
-- Recomendación de proyectos inmobiliarios
+## Tecnologías
 
-## Estructura del Proyecto
+- [LangGraph](https://github.com/langchain-ai/langgraph): Orquestación y arquitectura multi-agente
+- [Anthropic Claude](https://www.anthropic.com/claude): Modelo de lenguaje para procesamiento de texto natural
+- [Pydantic](https://docs.pydantic.dev): Validación y serialización de datos
+- [LangSmith](https://smith.langchain.com): Monitoreo y trazabilidad (opcional)
 
-El proyecto sigue una arquitectura modular con desarrollo incremental:
+## Instalación
 
-- **Fase 1:** MVP Conversacional
-- **Fase 2:** Extracción Inteligente
-- **Fase 3:** Flujo Adaptativo
-- **Fase 4:** Match y Engagement
-- **Fase 5:** Optimización de Conversión
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/yourusername/inmobilia-ai.git
+   cd inmobilia-ai
+   ```
 
-## Metodología GitFlow
+2. Crea un entorno virtual:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # En Windows: venv\\Scripts\\activate
+   ```
 
-Este proyecto implementa GitFlow como metodología de control de versiones:
+3. Instala las dependencias:
+   ```bash
+   # Instalación con uv (recomendado)
+   uv pip install -e .
+   uv pip install -e ".[dev]"  # Para desarrollo
 
-- `main`: Versión de producción estable
-- `develop`: Rama de desarrollo principal
-- `feature/*`: Nuevas funcionalidades
-- `release/*`: Preparación para lanzamientos
-- `hotfix/*`: Correcciones urgentes en producción
+   # O con pip tradicional
+   pip install -e .
+   pip install -e ".[dev]"  # Para desarrollo
+   ```
 
-## Requisitos
+4. Crea un archivo `.env` basado en `.env.example` y añade tu API key de Anthropic:
+   ```bash
+   cp .env.example .env
+   # Edita el archivo .env con tu editor preferido
+   ```
 
-- Python 3.10+
-- LangGraph
-- LangChain
-- Base de datos (a definir)
+## Ejecución
 
-## Estructura de Datos
+Para iniciar el asistente en modo interactivo:
 
-El sistema captura información estructurada con diferentes niveles de prioridad:
+```bash
+python main.py
+```
 
-- **Prioridad 10 (Obligatorio)**: Nombre, Tipo de inmueble, Consentimiento
-- **Prioridad 9**: Celular, Distrito/Zona, ID Proyecto
-- **Prioridad 8**: Email, Documento, Metraje, Habitaciones
-- **Prioridad 7**: Presupuesto, Timeline de compra
+## Comandos Esenciales
 
-## Contribución
+```bash
+# Ejecutar pruebas
+pytest tests/unit_tests/            # Pruebas unitarias
+pytest tests/integration_tests/     # Pruebas de integración
+pytest tests/standalone/           # Pruebas independientes (sin dependencias)
 
-Por favor, sigue las convenciones de GitFlow para contribuir a este proyecto.
+# Linting y formato
+make lint                          # Verificar estilo y tipos
+make format                        # Formatear código automáticamente
+
+# Desarrollo
+python -m agent                    # Ejecutar agente directamente
+```
+
+## Estructura del proyecto
+
+- `/src/agents/`: Agentes especializados (supervisor, legal, collector, location, preferences)
+- `/src/models/`: Modelos de datos (LeadData, AgentState) y validadores
+- `/src/graphs/`: Grafos de conversación LangGraph
+- `/src/services/`: Servicios para persistencia, recomendaciones y analítica
+- `/src/config/`: Configuración centralizada
+- `/data/`: Datos persistidos (leads, analíticas, propiedades de muestra)
+- `/tests/`: Pruebas unitarias y de integración
+  - `unit_tests/`: Pruebas unitarias organizadas por componente
+  - `integration_tests/`: Pruebas de integración
+  - `standalone/`: Pruebas independientes que no requieren dependencias completas
+
+## Configuración del entorno
+
+Variables requeridas en `.env`:
+```
+ANTHROPIC_API_KEY=sk-...         # API key de Anthropic para Claude
+ANTHROPIC_MODEL=claude-3-5-...   # Modelo de Claude a utilizar
+DEBUG=True                       # Modo de depuración
+LANGSMITH_PROJECT=inmobilia      # Para trazas y monitoreo (opcional)
+```
+
+## Arquitectura del Sistema
+
+Este proyecto implementa un asistente inmobiliario conversacional para el mercado peruano usando:
+- **LangGraph**: Orquestación de agentes especializados
+- **Claude**: Modelo LLM para procesamiento de lenguaje natural
+- **Pydantic**: Validación y serialización de datos inmobiliarios
+
+La implementación cumple con la Ley 29733 de Protección de Datos Personales de Perú, especialmente en la obtención y manejo del consentimiento explícito.
+
+## Desarrollado por
+
+Este proyecto fue creado para demostrar las capacidades de LangGraph en la creación de asistentes conversacionales multi-agente para aplicaciones inmobiliarias.

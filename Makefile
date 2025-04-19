@@ -1,51 +1,67 @@
-.PHONY: format lint test clean
+.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests
 
-format:
-	@echo "Formatting code with Black and isort..."
-	black src/ tests/
-	isort src/ tests/
-	@echo "✅ Code formatting completed successfully!"
+# Default target executed when no arguments are given to make.
+all: help
 
-lint:
-	@echo "Linting code with flake8 and mypy..."
-	flake8 src/ tests/
-	mypy --ignore-missing-imports src/
-	@echo "✅ Linting completed successfully!"
+# Define a variable for the test file path.
+TEST_FILE ?= tests/unit_tests/
 
 test:
-	@echo "Running tests with pytest..."
-	pytest tests/ --cov=src --cov-report=xml --cov-report=term
+	python -m pytest $(TEST_FILE)
 
-clean:
-	@echo "Cleaning up..."
-	rm -rf .pytest_cache
-	rm -rf .coverage
-	rm -rf coverage.xml
-	rm -rf .mypy_cache
-	rm -rf __pycache__
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
+integration_tests:
+	python -m pytest tests/integration_tests 
 
-ci: format lint test
-	@echo "✅ CI checks completed successfully!"
+test_watch:
+	python -m ptw --snapshot-update --now . -- -vv tests/unit_tests
 
-# For Windows users (use these instead of make commands)
-format-win:
-	@echo "Formatting code with Black and isort..."
-	python -m black src tests
-	python -m isort src tests
-	@echo "✅ Code formatting completed successfully!"
+test_profile:
+	python -m pytest -vv tests/unit_tests/ --profile-svg
 
-lint-win:
-	@echo "Linting code with flake8 and mypy..."
-	python -m flake8 src tests
-	python -m mypy --ignore-missing-imports src
-	@echo "✅ Linting completed successfully!"
+extended_tests:
+	python -m pytest --only-extended $(TEST_FILE)
 
-test-win:
-	@echo "Running tests with pytest..."
-	python -m pytest tests --cov=src --cov-report=xml --cov-report=term
 
-ci-win: format-win lint-win test-win
-	@echo "✅ CI checks completed successfully!"
+######################
+# LINTING AND FORMATTING
+######################
+
+# Define a variable for Python and notebook files.
+PYTHON_FILES=src/
+MYPY_CACHE=.mypy_cache
+lint format: PYTHON_FILES=.
+lint_diff format_diff: PYTHON_FILES=$(shell git diff --name-only --diff-filter=d main | grep -E '\.py$$|\.ipynb$$')
+lint_package: PYTHON_FILES=src
+lint_tests: PYTHON_FILES=tests
+lint_tests: MYPY_CACHE=.mypy_cache_test
+
+lint lint_diff lint_package lint_tests:
+	python -m ruff check .
+	[ "$(PYTHON_FILES)" = "" ] || python -m ruff format $(PYTHON_FILES) --diff
+	[ "$(PYTHON_FILES)" = "" ] || python -m ruff check --select I $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || python -m mypy --strict $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || mkdir -p $(MYPY_CACHE) && python -m mypy --strict $(PYTHON_FILES) --cache-dir $(MYPY_CACHE)
+
+format format_diff:
+	ruff format $(PYTHON_FILES)
+	ruff check --select I --fix $(PYTHON_FILES)
+
+spell_check:
+	codespell --toml pyproject.toml
+
+spell_fix:
+	codespell --toml pyproject.toml -w
+
+######################
+# HELP
+######################
+
+help:
+	@echo '----'
+	@echo 'format                       - run code formatters'
+	@echo 'lint                         - run linters'
+	@echo 'test                         - run unit tests'
+	@echo 'tests                        - run unit tests'
+	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
+	@echo 'test_watch                   - run unit tests in watch mode'
+

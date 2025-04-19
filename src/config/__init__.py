@@ -1,1 +1,1 @@
-# Configuration module
+"""Configuración para la aplicación inmobiliaria."""
